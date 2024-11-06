@@ -4,9 +4,10 @@ A powerful Flask REST API with advanced text processing, document handling, and 
 
 ## Features
 
+- JWT Authentication
+- Sentiment Analysis using transformers
 - Rate limiting for API endpoints
 - Environment variables configuration
-- Text analysis using transformers
 - Document processing (PDF, DOCX, XLSX, PPTX)
 - Image processing and OCR
 - Caching mechanisms
@@ -89,68 +90,52 @@ MAX_CONTENT_LENGTH=16777216  # 16MB max file size
 ALLOWED_EXTENSIONS=pdf,docx,xlsx,pptx,png,jpg,jpeg
 ```
 
-## API Endpoints
+## API Testing Guide
 
-### Authentication
-- POST /api/v1/auth/register
-- POST /api/v1/auth/login
+### 1. User Registration
 
-### Document Processing
-- POST /api/v1/documents/analyze
-- POST /api/v1/documents/convert
-- GET /api/v1/documents/{id}
-
-### Text Analysis
-- POST /api/v1/analysis/sentiment
-- POST /api/v1/analysis/summary
-- POST /api/v1/analysis/keywords
-
-## Rate Limiting
-
-The API implements rate limiting using Flask-Limiter:
-- 100 requests per hour per IP
-- 1000 requests per day per IP
-
-## Deployment to Railway.com
-
-1. Create a new project on Railway.com
-2. Connect your GitHub repository
-3. Set the following environment variables in Railway dashboard:
-   - `FLASK_APP=wsgi.py`
-   - `FLASK_ENV=production`
-   - `SECRET_KEY=[your-secure-secret-key]`
-   - `JWT_SECRET_KEY=[your-secure-jwt-key]`
-   - `RATE_LIMIT=100/hour`
-4. Deploy using Git:
-
-```bash
-git add .
-git commit -m "Initial commit"
-git push railway main
-```
-
-## Testing the API in your browser
-
-Now, I'll provide you with instructions for testing the API in your browser using some dummy data:
-
-1. First, register a user:
-
+Request:
 ```bash
 curl -X POST http://localhost:5000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser", "password":"testpass123"}'
 ```
 
-2. Login to get an access token:
+Response:
+```json
+{
+    "data": "User registered successfully",
+    "message": "Success",
+    "status": "success",
+    "timestamp": "2024-11-06T20:23:34.135271"
+}
+```
 
+### 2. User Login
+
+Request:
 ```bash
 curl -X POST http://localhost:5000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser", "password":"testpass123"}'
 ```
 
-3. Test the text analysis endpoint:
+Response:
+```json
+{
+    "data": {
+        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "token_type": "bearer"
+    },
+    "message": "Success",
+    "status": "success",
+    "timestamp": "2024-11-06T20:24:00.013003"
+}
+```
 
+### 3. Sentiment Analysis
+
+Request:
 ```bash
 curl -X POST http://localhost:5000/api/v1/analysis/sentiment \
   -H "Content-Type: application/json" \
@@ -158,89 +143,114 @@ curl -X POST http://localhost:5000/api/v1/analysis/sentiment \
   -d '{"text":"This is a great API service! I love using it."}'
 ```
 
-4. Test document analysis (requires a PDF file):
-
-```bash
-curl -X POST http://localhost:5000/api/v1/documents/analyze \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -F "file=@/path/to/your/document.pdf"
-```
-
-## Flutter Integration
-
-Here's a sample API service class for your Flutter app:
-
-```dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
-
-class ApiService {
-  static const String baseUrl = 'YOUR_RAILWAY_APP_URL';
-  String? _accessToken;
-
-  Future<String> _getAccessToken() async {
-    // ...
-  }
-
-  Future<Map<String, dynamic>> analyzeSentiment(String text) async {
-    // ...
-  }
-
-  Future<Map<String, dynamic>> analyzeDocument(List<int> fileBytes, String filename) async {
-    // ...
-  }
+Response:
+```json
+{
+    "data": {
+        "confidence": 0.9996,
+        "sentiment": "POSITIVE"
+    },
+    "message": "Success",
+    "status": "success",
+    "timestamp": "2024-11-06T20:46:53.265900"
 }
 ```
 
-## Best Practices
+### 4. Text Analysis Examples
 
-1. **Security**
-   - Use HTTPS in production
-   - Implement rate limiting
-   - Validate all input data
-   - Use secure headers
-   - Implement proper authentication
+Here are some example texts you can use to test the sentiment analysis endpoint:
 
-2. **Performance**
-   - Implement caching
-   - Use async operations where possible
-   - Optimize database queries
-   - Implement pagination
-
-3. **Code Organization**
-   - Follow modular architecture
-   - Use blueprints for routes
-   - Implement service layer
-   - Use dependency injection
-
-4. **Error Handling**
-   - Use proper HTTP status codes
-   - Return meaningful error messages
-   - Log errors appropriately
-   - Implement global error handling
-
-5. **Documentation**
-   - Document all endpoints
-   - Provide example requests/responses
-   - Include setup instructions
-   - Document environment variables
-
-## Testing
-
-Run tests using pytest:
-
-```bash
-pytest tests/
+Positive Examples:
+```json
+{
+    "text": "This product exceeds all my expectations! Absolutely wonderful!"
+}
 ```
 
-## Contributing
+```json
+{
+    "text": "The customer service team was incredibly helpful and responsive."
+}
+```
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
+Negative Examples:
+```json
+{
+    "text": "This service is terrible, I'm very disappointed with the results."
+}
+```
+
+```json
+{
+    "text": "The interface is confusing and the documentation is unclear."
+}
+```
+
+### 5. Document Analysis
+
+Request:
+```bash
+curl -X POST http://localhost:5000/api/v1/documents/analyze \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -F "file=@sample.txt"
+```
+
+Sample test files you can create:
+
+1. Create `sample.txt`:
+```bash
+echo "This is a sample document for testing the document analysis endpoint. 
+It contains multiple sentences and paragraphs.
+The API should be able to analyze this content and provide meaningful insights." > sample.txt
+```
+
+2. Create `test.pdf` (requires `pandoc`):
+```bash
+echo "# Test Document
+This is a PDF document created for testing purposes.
+It contains formatted text that can be analyzed by the API." | pandoc -f markdown -o test.pdf
+```
+
+## Rate Limiting
+
+The API implements rate limiting:
+- 100 requests per hour per IP
+- 1000 requests per day per IP
+
+## Error Handling
+
+Common error responses:
+
+```json
+{
+    "error": "Invalid credentials",
+    "message": "Failed",
+    "status": "error",
+    "timestamp": "2024-11-06T20:47:00.000000"
+}
+```
+
+```json
+{
+    "error": "Token has expired",
+    "message": "Failed",
+    "status": "error",
+    "timestamp": "2024-11-06T20:47:00.000000"
+}
+```
+
+## Deployment to Railway.com
+
+1. Create a new project on Railway.com
+2. Connect your GitHub repository
+3. Set environment variables in Railway dashboard
+4. Deploy using Git:
+
+```bash
+git add .
+git commit -m "Initial commit"
+git push railway main
+```
 
 ## License
 
