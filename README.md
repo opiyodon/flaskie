@@ -80,8 +80,13 @@ Create a `.env` file in the root directory:
 ```env
 FLASK_APP=wsgi.py
 FLASK_ENV=development
-SECRET_KEY=your-secret-key
+SECRET_KEY=your-super-secret-key-change-in-production
 RATE_LIMIT=100/hour
+JWT_SECRET_KEY=another-super-secret-key-for-jwt
+DATABASE_URL=sqlite:///flaskie.db
+UPLOAD_FOLDER=uploads
+MAX_CONTENT_LENGTH=16777216  # 16MB max file size
+ALLOWED_EXTENSIONS=pdf,docx,xlsx,pptx,png,jpg,jpeg
 ```
 
 ## API Endpoints
@@ -110,8 +115,13 @@ The API implements rate limiting using Flask-Limiter:
 
 1. Create a new project on Railway.com
 2. Connect your GitHub repository
-3. Set environment variables in Railway dashboard
-4. Deploy using the following commands:
+3. Set the following environment variables in Railway dashboard:
+   - `FLASK_APP=wsgi.py`
+   - `FLASK_ENV=production`
+   - `SECRET_KEY=[your-secure-secret-key]`
+   - `JWT_SECRET_KEY=[your-secure-jwt-key]`
+   - `RATE_LIMIT=100/hour`
+4. Deploy using Git:
 
 ```bash
 git add .
@@ -119,62 +129,67 @@ git commit -m "Initial commit"
 git push railway main
 ```
 
-## Integration with Flutter and Firebase
+## Testing the API in your browser
 
-### Flutter Integration
+Now, I'll provide you with instructions for testing the API in your browser using some dummy data:
 
-1. Add HTTP package to your Flutter project:
+1. First, register a user:
 
-```yaml
-dependencies:
-  http: ^0.13.5
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser", "password":"testpass123"}'
 ```
 
-2. Create an API service class:
+2. Login to get an access token:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser", "password":"testpass123"}'
+```
+
+3. Test the text analysis endpoint:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/analysis/sentiment \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{"text":"This is a great API service! I love using it."}'
+```
+
+4. Test document analysis (requires a PDF file):
+
+```bash
+curl -X POST http://localhost:5000/api/v1/documents/analyze \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -F "file=@/path/to/your/document.pdf"
+```
+
+## Flutter Integration
+
+Here's a sample API service class for your Flutter app:
 
 ```dart
-class FlaskieAPI {
-  static const String baseUrl = 'your-railway-app-url';
-  
-  Future<dynamic> analyzeSentiment(String text) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/v1/analysis/sentiment'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'text': text}),
-    );
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to analyze sentiment');
-    }
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
+
+class ApiService {
+  static const String baseUrl = 'YOUR_RAILWAY_APP_URL';
+  String? _accessToken;
+
+  Future<String> _getAccessToken() async {
+    // ...
   }
-  
-  // Add other API methods here
-}
-```
 
-### Firebase Integration
+  Future<Map<String, dynamic>> analyzeSentiment(String text) async {
+    // ...
+  }
 
-1. Set up Firebase Authentication in your Flutter app
-2. Pass Firebase ID token to Flask API:
-
-```dart
-Future<String> getIdToken() async {
-  final user = FirebaseAuth.instance.currentUser;
-  return await user?.getIdToken() ?? '';
-}
-
-Future<dynamic> makeAuthenticatedRequest() async {
-  final token = await getIdToken();
-  final response = await http.get(
-    Uri.parse('$baseUrl/api/v1/protected-endpoint'),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    },
-  );
-  return jsonDecode(response.body);
+  Future<Map<String, dynamic>> analyzeDocument(List<int> fileBytes, String filename) async {
+    // ...
+  }
 }
 ```
 
