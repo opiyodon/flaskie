@@ -5,6 +5,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from .config import Config
 import os
+from .routes import auth_bp, documents_bp, analysis_bp
 
 limiter = Limiter(key_func=get_remote_address)
 jwt = JWTManager()
