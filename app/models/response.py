@@ -1,73 +1,23 @@
-from typing import Any, Optional, Dict, List
-from dataclasses import dataclass
-import json
+from flask import jsonify
+from datetime import datetime
 
-@dataclass
-class APIResponse:
-    """Standard API response model."""
-    success: bool
-    data: Optional[Any] = None
-    message: Optional[str] = None
-    errors: Optional[List[Dict[str, str]]] = None
-    meta: Optional[Dict[str, Any]] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert response to dictionary."""
+class ApiResponse:
+    @staticmethod
+    def success(data=None, message="Success"):
         response = {
-            'success': self.success
+            "status": "success",
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": data
         }
-        
-        if self.data is not None:
-            response['data'] = self.data
-            
-        if self.message is not None:
-            response['message'] = self.message
-            
-        if self.errors is not None:
-            response['errors'] = self.errors
-            
-        if self.meta is not None:
-            response['meta'] = self.meta
-            
-        return response
+        return jsonify(response), 200
 
-    def to_json(self) -> str:
-        """Convert response to JSON string."""
-        return json.dumps(self.to_dict())
-
-    @classmethod
-    def success_response(cls, 
-                        data: Optional[Any] = None, 
-                        message: Optional[str] = None,
-                        meta: Optional[Dict[str, Any]] = None) -> 'APIResponse':
-        """Create a success response."""
-        return cls(
-            success=True,
-            data=data,
-            message=message,
-            meta=meta
-        )
-
-    @classmethod
-    def error_response(cls,
-                      message: str,
-                      errors: Optional[List[Dict[str, str]]] = None,
-                      meta: Optional[Dict[str, Any]] = None) -> 'APIResponse':
-        """Create an error response."""
-        return cls(
-            success=False,
-            message=message,
-            errors=errors,
-            meta=meta
-        )
-
-    @classmethod
-    def validation_error(cls,
-                        errors: List[Dict[str, str]],
-                        message: str = "Validation error") -> 'APIResponse':
-        """Create a validation error response."""
-        return cls(
-            success=False,
-            message=message,
-            errors=errors
-        )
+    @staticmethod
+    def error(message, status_code=400, errors=None):
+        response = {
+            "status": "error",
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+            "errors": errors
+        }
+        return jsonify(response), status_code

@@ -1,46 +1,38 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
-from ..services.text_processor import TextProcessor
+from ..utils.decorators import validate_json, cache_response
+from ..models.response import ApiResponse
+from ..services.text_processor import analyze_sentiment, generate_summary, extract_keywords
 from marshmallow import Schema, fields
 
-bp = Blueprint('analysis', __name__)
-text_processor = TextProcessor()
+analysis_bp = Blueprint('analysis', __name__)
 
-class TextAnalysisSchema(Schema):
+class TextSchema(Schema):
     text = fields.Str(required=True)
 
-@bp.route('/api/v1/analysis/sentiment', methods=['POST'])
+@analysis_bp.route('/sentiment', methods=['POST'])
 @jwt_required()
-def analyze_sentiment():
-    schema = TextAnalysisSchema()
-    try:
-        data = schema.load(request.get_json())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
-    
-    result = text_processor.analyze_sentiment(data['text'])
-    return jsonify(result)
+@validate_json(TextSchema())
+@cache_response(timeout=300)
+def sentiment_analysis():
+    data = request.get_json()
+    result = analyze_sentiment(data['text'])
+    return ApiResponse.success(result)
 
-@bp.route('/api/v1/analysis/summary', methods=['POST'])
+@analysis_bp.route('/summary', methods=['POST'])
 @jwt_required()
-def generate_summary():
-    schema = TextAnalysisSchema()
-    try:
-        data = schema.load(request.get_json())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
-    
-    result = text_processor.generate_summary(data['text'])
-    return jsonify(result)
+@validate_json(TextSchema())
+@cache_response(timeout=300)
+def text_summary():
+    data = request.get_json()
+    result = generate_summary(data['text'])
+    return ApiResponse.success(result)
 
-@bp.route('/api/v1/analysis/keywords', methods=['POST'])
+@analysis_bp.route('/keywords', methods=['POST'])
 @jwt_required()
-def extract_keywords():
-    schema = TextAnalysisSchema()
-    try:
-        data = schema.load(request.get_json())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
-    
-    result = text_processor.extract_keywords(data['text'])
-    return jsonify(result)
+@validate_json(TextSchema())
+@cache_response(timeout=300)
+def keyword_extraction():
+    data = request.get_json()
+    result = extract_keywords(data['text'])
+    return ApiResponse.success(result)

@@ -1,68 +1,54 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from ..utils.decorators import validate_json
+from ..models.response import ApiResponse
 from marshmallow import Schema, fields, validate
-from werkzeug.security import generate_password_hash, check_password_hash
-import json
+import hashlib
 
-bp = Blueprint('auth', __name__)
-
-# In-memory user store (replace with database in production)
-USERS = {}
+auth_bp = Blueprint('auth', __name__)
 
 class UserSchema(Schema):
     username = fields.Str(required=True, validate=validate.Length(min=3, max=50))
     password = fields.Str(required=True, validate=validate.Length(min=6))
 
-@bp.route('/api/v1/auth/register', methods=['POST'])
+# Dummy user database (replace with real database in production)
+users_db = {}
+
+@auth_bp.route('/register', methods=['POST'])
+@validate_json(UserSchema())
 def register():
-    schema = UserSchema()
-    try:
-        data = schema.load(request.get_json())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+    data = request.get_json()
+    username = data['username']
     
-    if data['username'] in USERS:
-        return jsonify({'error': 'Username already exists'}), 409
+    if username in users_db:
+        return ApiResponse.error("Username already exists", 400)
     
-    # Hash password and store user
-    hashed_password = generate_password_hash(data['password'])
-    USERS[data['username']] = {
-        'password': hashed_password
-    }
+    # Hash password (use proper password hashing in production)
+    password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
+    users_db[username] = password_hash
     
-    return jsonify({'message': 'User created successfully'}), 201
+    return ApiResponse.success("User registered successfully")
 
-@bp.route('/api/v1/auth/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST'])
+@validate_json(UserSchema())
 def login():
-    schema = UserSchema()
-    try:
-        data = schema.load(request.get_json())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+    data = request.get_json()
+    username = data['username']
+    password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
     
-    user = USERS.get(data['username'])
-    if not user or not check_password_hash(user['password'], data['password']):
-        return jsonify({'error': 'Invalid credentials'}), 401
+    if username not in users_db or users_db[username] != password_hash:
+        return ApiResponse.error("Invalid credentials", 401)
     
-    # Create tokens
-    access_token = create_access_token(identity=data['username'])
-    refresh_token = create_refresh_token(identity=data['username'])
-    
-    return jsonify({
-        'access_token': access_token,
-        'refresh_token': refresh_token
-    }), 200
+    access_token = create_access_token(identity=username)
+    return ApiResponse.success({
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
 
-@bp.route('/api/v1/auth/refresh', methods=['POST'])
-@jwt_required(refresh=True)
-def refresh():
-    current_user = get_jwt_identity()
-    new_access_token = create_access_token(identity=current_user)
-    
-    return jsonify({'access_token': new_access_token}), 200
-
-@bp.route('/api/v1/auth/me', methods=['GET'])
+@auth_bp.route('/me', methods=['GET'])
 @jwt_required()
-def get_user():
+def get_user_profile():
     current_user = get_jwt_identity()
-    return jsonify({'username': current_user}), 200
+    return ApiResponse.success({
+        "username": current_user
+    })

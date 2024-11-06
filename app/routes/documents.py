@@ -1,99 +1,46 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
 from werkzeug.utils import secure_filename
-from ..services.doc_handler import DocHandler
+from ..utils.decorators import validate_file
+from ..models.response import ApiResponse
+from ..services.doc_handler import process_document
 import os
 
-bp = Blueprint('documents', __name__)
-doc_handler = DocHandler()
+documents_bp = Blueprint('documents', __name__)
 
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
-
-@bp.route('/api/v1/documents/analyze', methods=['POST'])
+@documents_bp.route('/analyze', methods=['POST'])
 @jwt_required()
+@validate_file(['pdf', 'docx', 'xlsx', 'pptx'])
 def analyze_document():
     if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
+        return ApiResponse.error("No file provided", 400)
     
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
+        return ApiResponse.error("No selected file", 400)
     
-    if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed'}), 400
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
     
     try:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        # Process the document based on its type
-        result = doc_handler.analyze_document(filepath)
-        
-        # Clean up
-        os.remove(filepath)
-        
-        return jsonify(result), 200
+        result = process_document(filepath)
+        return ApiResponse.success(result)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return ApiResponse.error(str(e), 500)
+    finally:
+        # Clean up uploaded file
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
-@bp.route('/api/v1/documents/convert', methods=['POST'])
+@documents_bp.route('/<string:doc_id>', methods=['GET'])
 @jwt_required()
-def convert_document():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
-    
-    file = request.files['file']
-    target_format = request.form.get('format', 'pdf')
-    
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-    
-    if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed'}), 400
-    
-    try:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        # Convert the document
-        result = doc_handler.convert_document(filepath, target_format)
-        
-        # Clean up
-        os.remove(filepath)
-        
-        return jsonify(result), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@bp.route('/api/v1/documents/extract', methods=['POST'])
-@jwt_required()
-def extract_text():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-    
-    if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed'}), 400
-    
-    try:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        # Extract text from the document
-        result = doc_handler.extract_text(filepath)
-        
-        # Clean up
-        os.remove(filepath)
-        
-        return jsonify({'text': result}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+def get_document(doc_id):
+    # Dummy response for testing
+    return ApiResponse.success({
+        "id": doc_id,
+        "name": f"Document_{doc_id}",
+        "type": "pdf",
+        "created_at": "2024-03-20T10:00:00Z",
+        "status": "processed"
+    })
